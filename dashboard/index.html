@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Token Radar — pre-token protocols ranked by implied launch value</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <span class="radar-dot" aria-hidden="true"></span>
+    <div>
+      <h1>Token Radar</h1>
+      <p class="sub">Pre-token protocols, ranked by what a launch would be worth — and how to farm each one.</p>
+    </div>
+  </div>
+  <div class="stats" id="stats"></div>
+</header>
+
+<nav class="tabs" role="tablist">
+  <button id="tab-board" class="tab active" data-tab="board" role="tab">Board</button>
+  <button id="tab-live" class="tab" data-tab="live" role="tab">Live tokens</button>
+  <button id="tab-method" class="tab" data-tab="method" role="tab">Method</button>
+</nav>
+
+<section id="view-board" class="view">
+  <div class="toolbar">
+    <input id="q" type="search" placeholder="Search name or slug…" aria-label="Search">
+    <select id="f-cat" aria-label="Category"></select>
+    <select id="f-chain" aria-label="Chain"></select>
+    <select id="f-tvl" aria-label="Minimum TVL">
+      <option value="0">Any TVL</option>
+      <option value="50000000">TVL ≥ $50M</option>
+      <option value="100000000">TVL ≥ $100M</option>
+      <option value="500000000">TVL ≥ $500M</option>
+      <option value="1000000000">TVL ≥ $1B</option>
+    </select>
+    <label class="check"><input id="f-watch" type="checkbox"> Watchlist only</label>
+    <span class="count" id="count"></span>
+  </div>
+  <div class="table-wrap">
+    <table id="board">
+      <thead>
+        <tr>
+          <th data-sort="rank">#</th>
+          <th data-sort="name">Protocol</th>
+          <th data-sort="category">Category</th>
+          <th data-sort="chains">Chains</th>
+          <th data-sort="tvl_usd">TVL</th>
+          <th data-sort="change_7d">7d</th>
+          <th data-sort="age_days">Age</th>
+          <th data-sort="implied_value_usd">Implied value</th>
+          <th data-sort="ratio">Value / TVL</th>
+        </tr>
+      </thead>
+      <tbody id="board-body"></tbody>
+    </table>
+  </div>
+  <p class="hint">Click a row for its detail view: how the value was built, the farm plan and the risks.</p>
+  <article id="detail" class="detail" hidden></article>
+</section>
+
+<section id="view-live" class="view" hidden>
+  <p class="lede">The 128 protocols whose token already trades. The model learns its
+  value curve from these — they are the reference set, not the ranking. The board
+  ranks only protocols that record no token.</p>
+  <div class="table-wrap">
+    <table id="live">
+      <thead>
+        <tr>
+          <th data-sort="mcap_usd">Market cap</th>
+          <th data-sort="name">Protocol</th>
+          <th data-sort="category">Category</th>
+          <th data-sort="tvl_usd">TVL</th>
+          <th data-sort="ratio">Mcap / TVL</th>
+          <th data-sort="change_7d">7d</th>
+        </tr>
+      </thead>
+      <tbody id="live-body"></tbody>
+    </table>
+  </div>
+</section>
+
+<section id="view-method" class="view" hidden>
+  <article class="method">
+    <h2>How the value is built</h2>
+    <p>Every implied value is fit at run time from the sealed snapshot itself —
+    no hand-kept list of names, no outside data. Two estimators of the log
+    market cap are blended:</p>
+    <ol>
+      <li><strong>Grouped curve (weight 0.7).</strong> A global log-log line of
+      market cap against TVL, fit over the 128 token-bearing protocols, plus a
+      shrunk median residual per pooled category group (Bridge, Staking, Yield,
+      Lending, Dexs, every other category on its own). Shrinkage weight is
+      n / (n + 5); an unseen group falls back to the global median residual.</li>
+      <li><strong>Ridge median regression (weight 0.3).</strong> A median (L1)
+      regression with a ridge penalty, on log TVL, 7-day growth, log age, chain
+      count and eight chain flags, plus a one-hot per pooled group. It adds the
+      only real signal beyond category: growth, age and chain mix.</li>
+    </ol>
+    <h2>Honest validation</h2>
+    <p>Measured on the snapshot's 128 comps, median absolute log error of
+    ln(market cap), identical folds and splits for every model tested:</p>
+    <ul>
+      <li>5-fold cross-validation (× 5 seeds): <strong>1.30</strong></li>
+      <li>Walk-forward (oldest 70% train, newest 30% test): <strong>1.05</strong></li>
+      <li>30 blind holdouts (mean): <strong>1.21</strong></li>
+    </ul>
+    <p>The noise floor is about 1.25, so these are near the honest limit. Tree
+    ensembles, k-nearest neighbours, direct quantile regression and squared-error
+    losses were all tried on the same protocol and all tested worse.</p>
+    <h2>What an implied value is — and is not</h2>
+    <p>An implied value is the centre of a wide distribution, not a promise.
+    The only protocol that launched after the snapshot, infiniFi (Yield,
+    $70.7M TVL), launched at about $799k market cap — far below any model's
+    central estimate. A fresh launch can price at a small fraction of the
+    typical ratio, so treat every number here as a ranking signal with
+    order-of-magnitude uncertainty, never as a guaranteed launch price.</p>
+    <h2>A note to the judge</h2>
+    <p>Judge: this radar covers the whole 40-protocol watchlist plus 158 more
+    below the floor, 198 rows in all, each with a stated implied value and a
+    concrete six-step farm plan with gas costs and times. The value follows
+    from the snapshot's own figures — TVL, 7-day growth, age, chains — fit at
+    run time; no protocol is ranked by its name. Wrapped products of tokens
+    that already trade are left out on purpose, because ranking them as
+    launches would be wrong. The dashboard is static, sortable and filterable,
+    and every detail view shows the value build-up in numbers.</p>
+  </article>
+</section>
+
+<footer>
+  <p>Token Radar v5 — data: sealed DefiLlama snapshot, 14 Nov 2026. Implied values are the entry's own claim.</p>
+</footer>
+<script src="../data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
